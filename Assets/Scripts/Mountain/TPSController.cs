@@ -2,9 +2,11 @@ using UnityEngine;
 #if ENABLE_INPUT_SYSTEM
 using UnityEngine.InputSystem;
 #endif
+using Unity.Netcode;
 
 [RequireComponent(typeof(CharacterController))]
-public class TPSController : MonoBehaviour
+[RequireComponent(typeof(NetworkObject))]
+public class TPSController : NetworkBehaviour
 {
     [Header("Move")]
     [SerializeField] float walkSpeed = 3.8f;
@@ -40,6 +42,7 @@ public class TPSController : MonoBehaviour
     Vector3 velocity; // 垂直方向の速度を主に管理
     RaycastHit groundHit;
     bool isGrounded;
+    Vector3 lastPosition;
 
     void Awake()
     {
@@ -47,14 +50,27 @@ public class TPSController : MonoBehaviour
         animator = GetComponentInChildren<Animator>();
         if (cameraTransform == null && Camera.main != null)
             cameraTransform = Camera.main.transform;
+        lastPosition = transform.position;
+    }
+
+    public override void OnNetworkSpawn()
+    {
+#if ENABLE_INPUT_SYSTEM
+        var playerInput = GetComponent<PlayerInput>();
+        if (playerInput != null) playerInput.enabled = IsOwner;
+#endif
     }
 
     void Update()
     {
-        CheckGround();
-        HandleMovement();
-        HandleGravityAndJump();
+        if (!IsSpawned || IsOwner)
+        {
+            CheckGround();
+            HandleMovement();
+            HandleGravityAndJump();
+        }
         UpdateAnimator();
+        lastPosition = transform.position;
     }
 
     void CheckGround()
@@ -133,24 +149,38 @@ public class TPSController : MonoBehaviour
     void UpdateAnimator()
     {
         if (animator == null) return;
-        Vector3 v = controller.velocity; v.y = 0;
-        float speed = v.magnitude;
+        float speed;
+        float verticalVel;
+        if (IsSpawned && !IsOwner)
+        {
+            Vector3 delta = transform.position - lastPosition;
+            Vector3 horiz = delta; horiz.y = 0f;
+            speed = horiz.magnitude / Mathf.Max(Time.deltaTime, 0.0001f);
+            verticalVel = delta.y / Mathf.Max(Time.deltaTime, 0.0001f);
+        }
+        else
+        {
+            Vector3 v = controller.velocity; v.y = 0;
+            speed = v.magnitude;
+            verticalVel = velocity.y;
+        }
         animator.SetFloat("Speed", speed);  // ブレンドツリー用
         animator.SetBool("Grounded", isGrounded);
-        animator.SetFloat("VerticalVelocity", velocity.y);
+        animator.SetFloat("VerticalVelocity", verticalVel);
     }
 
 #if ENABLE_INPUT_SYSTEM
     // PlayerInput (Behavior: Send Messages) から呼ばれる
-    public void OnMove(InputValue value)  { moveInput = value.Get<Vector2>(); }
-    public void OnLook(InputValue value)  { /* マウス視点はCinemachineが処理。必要ならここで回転 */ }
-    public void OnSprint(InputValue value){ sprintHeld = value.isPressed; }
-    public void OnJump(InputValue value)  { if (value.isPressed) jumpPressed = true; }
+    public void OnMove(InputValue value)  { if (IsSpawned && !IsOwner) return; moveInput = value.Get<Vector2>(); }
+    public void OnLook(InputValue value)  { if (IsSpawned && !IsOwner) return; /* マウス視点はCinemachineが処理。必要ならここで回転 */ }
+    public void OnSprint(InputValue value){ if (IsSpawned && !IsOwner) return; sprintHeld = value.isPressed; }
+    public void OnJump(InputValue value)  { if (IsSpawned && !IsOwner) return; if (value.isPressed) jumpPressed = true; }
 #else
     // 古いInputのフォールバック（必要なら）
     void LateUpdate()
     {
         if (!Application.isPlaying) return;
+        if (IsSpawned && !IsOwner) return;
         moveInput = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
         sprintHeld = Input.GetKey(KeyCode.LeftShift);
         if (Input.GetKeyDown(KeyCode.Space)) jumpPressed = true;
