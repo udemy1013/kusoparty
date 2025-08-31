@@ -908,7 +908,13 @@ PlayerSettings:
   XboxOneOverrideIdentityName: 
   XboxOneOverrideIdentityPublisher: 
   vrEditorSettings: {}
-  cloudServicesEnabled: {}
+  cloudServicesEnabled:
+    Build: 0
+    Game Performance: 0
+    Legacy Analytics: 0
+    Purchasing: 0
+    UDP: 0
+    Unity Ads: 0
   luminIcon:
     m_Name: 
     m_ModelFolderPath: 
@@ -930,11 +936,11 @@ PlayerSettings:
   captureStartupLogs: {}
   activeInputHandler: 1
   windowsGamepadBackendHint: 0
-  cloudProjectId: f7549351-bd23-46d4-a3b8-120a717d1249
+  cloudProjectId: d7fd4827-369a-410b-9104-773deb168dd6
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: KusoParty
-  organizationId: arigatosun-llc
+  projectName: Kusoparty
+  organizationId: udemy1013
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
